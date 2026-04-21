@@ -1,6 +1,6 @@
-# ⚡ Ignix CLI – Gestor de Boilerplates desde Git
+# ⚡ @ignix/forge – Gestor de Boilerplates desde Git
 
-Ignix es una herramienta de línea de comandos para **gestionar boilerplates desde repositorios Git**. Agregá tus templates favoritos localmente y creá proyectos nuevos en segundos.
+**@ignix/forge** es una herramienta de línea de comandos para **gestionar boilerplates desde repositorios Git**. Agregá tus templates favoritos localmente y creá proyectos nuevos en segundos.
 
 ## 🧰 Construido con
 

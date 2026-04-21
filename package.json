@@ -1,7 +1,7 @@
 {
-  "name": "@johny_yen/ignix-forge",
+  "name": "@ignix/forge",
   "version": "1.0.0",
-  "description": "A CLI to manage boilerplates from Git repos",
+  "description": "CLI to manage boilerplates from Git repos",
   "main": "index.js",
   "bin": {
     "ignix": "./bin/ignix.js"
@@ -18,7 +18,7 @@
   "bugs": {
     "url": "https://github.com/JohnyYen/ignix-forge/issues"
   },
-  "keywords": [],
+  "keywords": ["ignix", "forge", "boilerplate", "cli", "scaffold", "template"],
   "author": "Johny A. Pedraza Romero",
   "license": "ISC",
   "dependencies": {
