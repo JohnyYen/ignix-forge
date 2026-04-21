@@ -1,0 +1,16 @@
+[
+  {
+    "name": "vite-template",
+    "description": "Vite vanilla template",
+    "repo": "git@github.com:vitejs/vite-template-vanilla.git",
+    "localPath": "./boilerplates/vite-template",
+    "createdAt": "2026-04-21T11:58:24.108Z"
+  },
+  {
+    "name": "nextjs-nested",
+    "description": "Next.js nested routing",
+    "repo": "git@github.com:johnyYen/next-nested-routing.git",
+    "localPath": "./boilerplates/nextjs-nested",
+    "createdAt": "2026-04-21T11:59:41.878Z"
+  }
+]
