@@ -1,94 +1,110 @@
-const { cloneTemplate, isValidGitUrl, writeTemplateInJson } = require('../utils/helper')
-const path = require('path');
-const fs = require('fs-extra');
-const inq = require('inquirer')
-const { frameworks } = require('../config/index');
+const { cloneTemplate, isValidGitUrl, writeBoilerplateInJson } = require("../utils/helper");
+const path = require("path");
+const fs = require("fs-extra");
+const inq = require("inquirer");
+
+const inquirer = inq.default;
 
 function getCommand(program) {
-    program
-        .command('add')
-        .option('-u, --url <name>', 'Url del repositorio de git')
-        .option('-n, --name <name>', "Nombre de la plantilla")
-        .option('-f, --framework <name>', "Framework al que pertenece la plantilla")
-        .option("-d, --description <name>", "Descripción de la plantilla")
-        .description('Obtener el template desde la url de un repositorio de git')
-        .action(async (options) => {
-            let { url, name, description, framework } = options;
-            let valid = true;
-            const targetDir = path.resolve(`./templates/${framework.toLowerCase()}/${name}`);
-            if (!framework) {
-                const answer = await inq.default.prompt([
-                    {
-                        type: 'select',
-                        name: "framework",
-                        message: "Con que framework vas a trabajar?",
-                        choices: frameworks.map(key => ({
-                            name: `${key}`,
-                            value: key
-                        }))
-                    }
-                ])
-                framework = answer.framework
-            }
-            if (!name) {
-                const answer = await inq.default.prompt([
-                    {
-                        type: 'input',
-                        name: "name",
-                        message: "Dale un nombre a tu template",
-                        default: 'default-template'
-                    }
-                ])
+  program
+    .command("add")
+    .option("-u, --url <url>", "URL del repositorio de git")
+    .option("-n, --name <name>", "Nombre del boilerplate")
+    .option("-d, --description <description>", "Descripción del boilerplate")
+    .option("-j, --json", "Salida en formato JSON")
+    .description("Agregar un boilerplate desde un repositorio de git")
+    .action(async (options) => {
+      let { url, name, description, json } = options;
 
-                name = answer.name
-            }
+      if (!name) {
+        const answer = await inquirer.prompt([
+          {
+            type: "input",
+            name: "name",
+            message: "Nombre del boilerplate:",
+            default: "my-boilerplate",
+          },
+        ]);
+        name = answer.name;
+      }
 
-            if (!description) {
-                const answer = await inq.default.prompt([
-                    {
-                        type: 'input',
-                        name: "description",
-                        message: "Dale una descripción a la plantilla",
-                        default: '....'
-                    }
-                ])
+      if (!url) {
+        const answer = await inquirer.prompt([
+          {
+            type: "input",
+            name: "url",
+            message: "URL del repositorio de git:",
+          },
+        ]);
+        url = answer.url;
+      }
 
-                description = answer.description
-            }
+      if (!description) {
+        const answer = await inquirer.prompt([
+          {
+            type: "input",
+            name: "description",
+            message: "Descripción del boilerplate:",
+            default: "...",
+          },
+        ]);
+        description = answer.description;
+      }
 
-            if (!url) {
-                const answer = await inq.default.prompt([
-                    {
-                        type: 'input',
-                        name: "url",
-                        message: "Cúal es la url del repo del template"
-                    }
-                ])
+      const targetDir = path.resolve(`./boilerplates/${name}`);
 
-                url = answer.url                
-            }
-            if (!isValidGitUrl(url)){
-                console.log(`❌ URL de repositorio inválida: ${url}`);
-                valid = false;
-            }
+      if (!isValidGitUrl(url)) {
+        const error = { error: true, message: `URL de repositorio inválida: ${url}` };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ ${error.message}`);
+        }
+        return;
+      }
 
-            if(valid){
+      if (fs.existsSync(targetDir)) {
+        const error = { error: true, message: `El boilerplate "${name}" ya existe en ./boilerplates/${name}` };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ ${error.message}`);
+        }
+        return;
+      }
 
-                await fs.ensureDir(path.dirname(targetDir));
+      try {
+        await fs.ensureDir(path.dirname(targetDir));
 
-                if (fs.existsSync(targetDir))
-                    console.log(`El template "${name}" ya existe en ${framework}`);
+        if (!json) {
+          console.log(`🔄 Clonando ${url} a ${targetDir}...`);
+        }
 
-                console.log(`🔄 Clonando ${url} a ${targetDir}...`);
+        await cloneTemplate(url, name);
+        await writeBoilerplateInJson(name, description, url);
 
-                await cloneTemplate(url, framework.toLowerCase(), name);
-                await writeTemplateInJson(framework, name, description, url);
+        const result = {
+          success: true,
+          name,
+          url,
+          localPath: `./boilerplates/${name}`,
+        };
 
-                console.log(`✅ Template agregado exitosamente`);
-            }
-
-
-        })
+        if (json) {
+          console.log(JSON.stringify(result));
+        } else {
+          console.log(`✅ Boilerplate "${name}" agregado exitosamente`);
+          console.log(`   Ubicación: ./boilerplates/${name}`);
+        }
+      } catch (err) {
+        const error = { error: true, message: err.message };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ Error al agregar boilerplate: ${err.message}`);
+        }
+      }
+    });
 }
 
-module.exports = getCommand
+module.exports = getCommand;

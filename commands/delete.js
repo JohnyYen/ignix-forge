@@ -1,115 +1,104 @@
 const fs = require("fs-extra");
 const path = require("path");
 const inq = require("inquirer");
-const { readTemplateJson } = require("../utils/helper");
+const { readBoilerplatesJson, deleteBoilerplateInJson } = require("../utils/helper");
+
+const inquirer = inq.default;
 
 async function deleteCommand(program) {
+  const BOILERPLATES_PATH = pathResolve.resolve(__dirname, "../config/boilerplates.json");
+
   program
     .command("remove")
-    .option(
-      "-t, --template <name>",
-      "Eliminar un template específico dado un framework"
-    )
-    .option("-f, --framework <name>", "Eliminar un framework completo")
-    .description("Para eliminar templates o frameworks completos")
+    .option("-n, --name <name>", "Nombre del boilerplate a eliminar")
+    .option("-j, --json", "Salida en formato JSON")
+    .description("Eliminar un boilerplate")
     .action(async (options) => {
-      let { template, framework } = options;
-      const frameworksPath = path.resolve(
-        __dirname,
-        "../config/frameworks.json"
-      );
+      let { name, json } = options;
 
-      const frameworks = JSON.parse(fs.readFileSync(frameworksPath, "utf8"));
+      const boilerplates = await readBoilerplatesJson();
 
-      if (!framework) {
-        const answer = await inq.default.prompt([
+      if (boilerplates.length === 0) {
+        const error = { error: true, message: "No hay boilerplates para eliminar" };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error("❌ No hay boilerplates disponibles.");
+        }
+        return;
+      }
+
+      if (!name) {
+        const answer = await inquirer.prompt([
           {
             type: "list",
-            name: "framework",
-            message: "¿Qué tipo de proyecto deseas crear?",
-            choices: Object.keys(frameworks).map((key) => ({
-              name: `${frameworks[key].name} (${key})`,
-              value: key,
+            name: "name",
+            message: "Selecciona el boilerplate a eliminar:",
+            choices: boilerplates.map((b) => ({
+              name: b.name,
+              value: b.name,
             })),
           },
         ]);
-        framework = answer.framework;
+        name = answer.name;
       }
 
-      if (!template) {
-        const answer = await inq.default.prompt([
-          {
-            type: "list",
-            name: "template",
-            message: "¿Qué tipo de proyecto deseas crear?",
-            choices: Object.keys(frameworks[framework].templates).map(
-              (key, index) => ({
-                name: `${frameworks[framework].templates[index].id}`,
-                value: frameworks[framework].templates[index].id,
-              })
-            ),
-          },
-        ]);
-        template = answer.template;
+      const selectedBp = boilerplates.find((b) => b.name === name);
+
+      if (!selectedBp) {
+        const error = { error: true, message: `Boilerplate "${name}" no encontrado` };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ Boilerplate "${name}" no encontrado.`);
+        }
+        return;
       }
 
       try {
-        const data = await fs.readJson(frameworksPath);
+        const bpPath = path.resolve(selectedBp.localPath);
 
-        if (template && framework) {
-          // Eliminar template específico
-          if (data[framework]) {
-            const templateIndex = data[framework].templates.findIndex(
-              (t) => t.id === template
-            );
-            if (templateIndex !== -1) {
-
-              if (data[framework].templates.length === 1) {
-                await fs.removeSync(`./templates/${framework}`);
-                delete data[framework];
-              } else {
-                await fs.removeSync(`./templates/${framework}/${template}`);
-                data[framework].templates.splice(templateIndex, 1);
-              }
-
-              await fs.writeJson(frameworksPath, data, { spaces: 2 });
-
-              console.log(
-                `✅ Template "${template}" eliminado del framework "${framework}"`
-              );
-            } else {
-              console.log(
-                `❌ No se encontró el template "${template}" en el framework "${framework}"`
-              );
+        if (fs.existsSync(bpPath)) {
+          if (!json) {
+            const confirm = await inquirer.prompt([
+              {
+                type: "confirm",
+                name: "confirm",
+                message: `¿Eliminar también la carpeta local ${bpPath}?`,
+                default: false,
+              },
+            ]);
+            if (confirm.confirm) {
+              await fs.remove(bpPath);
             }
           } else {
-            console.log(`❌ No se encontró el framework "${framework}"`);
+            await fs.remove(bpPath);
           }
-        } else if (framework && !template) {
-          // Eliminar framework completo
-          if (data[framework]) {
-            delete data[framework];
-            await fs.writeJson(frameworksPath, data, { spaces: 2 });
-            console.log(`✅ Framework "${framework}" eliminado correctamente`);
-          } else {
-            console.log(`❌ No se encontró el framework "${framework}"`);
-          }
-        } else {
-          console.log(
-            "Debe especificar el framework (-f) o el template (-t) en específico"
-          );
-          console.log("Ejemplos:");
-          console.log(
-            '  ignis remove -f react -t basic → Elimina el template "basic" de React'
-          );
-          console.log(
-            "  ignis remove -f nestjs → Elimina todo el framework NestJS"
-          );
         }
-      } catch (error) {
-        console.error(`❌ Error al procesar la eliminación : ${error.message}`);
+
+        await deleteBoilerplateInJson(name);
+
+        const result = {
+          success: true,
+          name,
+          message: `Boilerplate "${name}" eliminado`,
+        };
+
+        if (json) {
+          console.log(JSON.stringify(result));
+        } else {
+          console.log(`✅ Boilerplate "${name}" eliminado exitosamente.`);
+        }
+      } catch (err) {
+        const error = { error: true, message: err.message };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ Error al eliminar boilerplate: ${err.message}`);
+        }
       }
     });
 }
 
+const pathResolve = require("path");
 module.exports = deleteCommand;

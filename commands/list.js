@@ -1,65 +1,44 @@
-const fs = require('fs-extra');
-const path = require('path');
+const fs = require("fs-extra");
+const path = require("path");
+
+const BOILERPLATES_PATH = path.resolve(__dirname, "../config/boilerplates.json");
 
 async function listCommand(program) {
-  const frameworksPath = path.resolve(__dirname, '../config/frameworks.json');
-
   program
-    .command('list')
-    .option('-t, --template', "Lista además todos las plantillas por framework")
-    .option('-f, --framework <name>', "Lista todos los templates de un framework en específico")
-    .description('Lista todos los frameworks soportados')
+    .command("list")
+    .option("-j, --json", "Salida en formato JSON")
+    .description("Lista todos los boilerplates disponibles")
     .action(async (options) => {
-        const frameworks = JSON.parse(await fs.readFile(frameworksPath, 'utf8'));
-        const {framework, template} = options;
+      const { json } = options;
 
-        console.log('\nIGNIS CLI - LISTA DE RECURSOS\n');
+      let boilerplates = [];
+      try {
+        const data = await fs.readFile(BOILERPLATES_PATH, "utf8");
+        boilerplates = JSON.parse(data);
+      } catch (error) {
+        boilerplates = [];
+      }
 
-        if (template && !framework){
-            console.log('PLANTILLAS POR FRAMEWORK:\n');
+      if (json) {
+        console.log(JSON.stringify(boilerplates, null, 2));
+        return;
+      }
 
-            for(const [key, value] of Object.entries(frameworks)) {
-                console.log(`┌─ ${value.name.toUpperCase()} ${'─'.repeat(50 - value.name.length)}`);
-                for(const templ of value.templates) {
-                    console.log(`│  • ${templ.id.padEnd(20)} ${templ.description}`);
-                }
-                console.log(`└${'─'.repeat(52)}\n`);
-            }
-        }
-        else if(template && framework){
-            let find = false;
+      if (boilerplates.length === 0) {
+        console.log("\n📦 No hay boilerplates disponibles.\n");
+        console.log("Usa 'ignix add' para agregar uno.\n");
+        return;
+      }
 
-            for(const [_, value] of Object.entries(frameworks)) {
-                if(value.name.toLowerCase() === framework.toLowerCase()){
-                    find = true;
-                    console.log(`PLANTILLAS PARA ${value.name.toUpperCase()}:\n`);
-                    console.log(`┌${'─'.repeat(52)}`);
-                    for(const templ of value.templates) {
-                        console.log(`│  • ${templ.id.padEnd(20)} ${templ.description}`);
-                    }
-                    console.log(`└${'─'.repeat(52)}\n`);
-                    break;
-                }
-            }
+      console.log("\n📦 BOILERPLATES DISPONIBLES\n");
+      console.log("┌" + "─".repeat(52));
+      for (const bp of boilerplates) {
+        const desc = bp.description ? bp.description.substring(0, 30) : "Sin descripción";
+        console.log(`│  • ${bp.name.padEnd(20)} ${desc}`);
+      }
+      console.log("└" + "─".repeat(52) + "\n");
 
-            if(!find) {
-                console.log('El framework especificado no existe\n');
-                console.log('FRAMEWORKS DISPONIBLES:');
-                for(const [_, value] of Object.entries(frameworks)) {
-                    console.log(`- ${value.name}`);
-                }
-            }
-        }
-        else{
-            console.log('FRAMEWORKS SOPORTADOS:\n');
-            console.log('┌'+'─'.repeat(52));
-            for (const [_, value] of Object.entries(frameworks)) {
-                console.log(`│  • ${value.name.padEnd(20)} (${value.templates.length} plantillas)`);
-            }
-            console.log('└'+'─'.repeat(52)+'\n');
-        }
-
-        console.log('Usa --help para ver más opciones\n');
+      console.log(`Total: ${boilerplates.length} boilerplate(s)\n`);
     });
 }
 

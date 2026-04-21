@@ -1,90 +1,132 @@
-const fs = require('fs-extra')
-const inq = require('inquirer')
-const pathResolve = require('path')
-const generateProject = require('../utils/generator')
+const fs = require("fs-extra");
+const inq = require("inquirer");
+const pathResolve = require("path");
+const { readBoilerplatesJson } = require("../utils/helper");
 
-const inquirer = inq.default
+const inquirer = inq.default;
 
-function createCommand(program) {
-  const frameworksPath = pathResolve.resolve(__dirname, '../config/frameworks.json');
-  const frameworks = JSON.parse(fs.readFileSync(frameworksPath, 'utf8'));
+async function createCommand(program) {
+  const BOILERPLATES_PATH = pathResolve.resolve(__dirname, "../config/boilerplates.json");
 
   program
-    .command('init')
-    .description('Crea un proyecto desde una plantilla')
-    .option('-f, --framework <name>', 'Framework del proyecto (ej: react, nestjs)')
-    .option('-t, --template <name>', 'Nombre de la plantilla (ej: basic, hexagonal)')
-    .option('-n, --name <name>', 'Nombre del proyecto')
+    .command("create")
+    .option("-b, --boilerplate <name>", "Nombre del boilerplate a usar")
+    .option("-n, --name <name>", "Nombre del proyecto")
+    .option("-p, --path <path>", "Ruta donde crear el proyecto")
+    .option("-j, --json", "Salida en formato JSON")
+    .description("Crea un proyecto desde un boilerplate")
     .action(async (options) => {
-      let { framework, template, name, path} = options;
+      let { boilerplate, name, path: targetPath, json } = options;
 
-      // 1. Seleccionar framework si no se provee
-      if (!framework) {
-        const answer = await inquirer.prompt([
-          {
-            type: 'list',
-            name: 'framework',
-            message: '¿Qué tipo de proyecto deseas crear?',
-            choices: Object.keys(frameworks).map(key => ({
-              name: `${frameworks[key].name} (${key})`,
-              value: key,
-            })),
-          },
-        ]);
-        framework = answer.framework;
-      } else if (!frameworks[framework]) {
-        console.error(`❌ Framework no soportado: ${framework}`);
-        console.log("Frameworks soportados:", Object.keys(frameworks));
+      const boilerplates = await readBoilerplatesJson();
+
+      if (boilerplates.length === 0) {
+        const error = { error: true, message: "No hay boilerplates disponibles. Usa 'ignix add' primero." };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error("❌ No hay boilerplates disponibles.");
+          console.log("Usa 'ignix add' para agregar uno.");
+        }
         return;
       }
 
-      const frameworkConfig = frameworks[framework];
-
-      // 2. Seleccionar template si no se provee
-      if (!template) {
+      if (!boilerplate) {
         const answer = await inquirer.prompt([
           {
-            type: 'list',
-            name: 'template',
-            message: 'Selecciona una plantilla:',
-            choices: frameworkConfig.templates.map(t => ({
-              name: t.id,
-              value: t.id,
+            type: "list",
+            name: "boilerplate",
+            message: "Selecciona un boilerplate:",
+            choices: boilerplates.map((b) => ({
+              name: b.name,
+              value: b.name,
             })),
           },
         ]);
-        template = answer.template;
-      } else if (!frameworkConfig.templates.some(t => t.id === template)) {
-        console.error(`❌ Template "${template}" no válido para framework "${framework}"`);
-        console.log(`Templates válidos para ${framework}:`, frameworkConfig.templates.map(t => t.id));
+        boilerplate = answer.boilerplate;
+      }
+
+      const selectedBp = boilerplates.find((b) => b.name === boilerplate);
+
+      if (!selectedBp) {
+        const error = { error: true, message: `Boilerplate "${boilerplate}" no encontrado` };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ Boilerplate "${boilerplate}" no encontrado.`);
+        }
         return;
       }
 
-      // 3. Seleccionar nombre si no se provee
       if (!name) {
         const answer = await inquirer.prompt([
           {
-            type: 'input',
-            name: 'name',
-            message: 'Nombre del proyecto:',
-            default: `my-${framework}-app`,
+            type: "input",
+            name: "name",
+            message: "Nombre del proyecto:",
+            default: `my-${boilerplate}-project`,
           },
         ]);
         name = answer.name;
       }
 
-      const templatePath = pathResolve.resolve(`./templates/${framework}/${template}`);
-      await fs.mkdir(`./${name}`)
-      const targetPath = pathResolve.resolve(`./${name}`);
+      if (!targetPath) {
+        targetPath = pathResolve.resolve(`./${name}`);
+      } else {
+        targetPath = pathResolve.resolve(targetPath);
+      }
+
+      const boilerplatePath = pathResolve.resolve(selectedBp.localPath);
+
+      if (!fs.existsSync(boilerplatePath)) {
+        const error = { error: true, message: `El boilerplate "${boilerplate}" no existe en local` };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ El boilerplate "${boilerplate}" no existe en local.`);
+        }
+        return;
+      }
+
+      if (fs.existsSync(targetPath)) {
+        const error = { error: true, message: `El directorio "${targetPath}" ya existe` };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ El directorio "${targetPath}" ya existe.`);
+        }
+        return;
+      }
 
       try {
-        await generateProject(templatePath, targetPath);
-        console.log(`✅ Proyecto "${name}" creado exitosamente.`);
+        if (!json) {
+          console.log(`🔄 Copiando boilerplate "${boilerplate}" a ${targetPath}...`);
+        }
+
+        await fs.copy(boilerplatePath, targetPath);
+
+        const result = {
+          success: true,
+          name,
+          boilerplate,
+          path: targetPath,
+        };
+
+        if (json) {
+          console.log(JSON.stringify(result));
+        } else {
+          console.log(`✅ Proyecto "${name}" creado exitosamente.`);
+          console.log(`   Ubicación: ${targetPath}`);
+        }
       } catch (err) {
-        console.error(`❌ Error al crear el proyecto: ${err.message}`);
+        const error = { error: true, message: err.message };
+        if (json) {
+          console.log(JSON.stringify(error));
+        } else {
+          console.error(`❌ Error al crear el proyecto: ${err.message}`);
+        }
       }
     });
 }
 
-
-module.exports = createCommand
+module.exports = createCommand;
