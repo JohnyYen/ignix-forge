@@ -1,28 +1,29 @@
 {
-  "name": "@johnyyen/ignis-forge",
+  "name": "@johny_yen/ignix-forge",
   "version": "1.0.0",
-  "description": "A multi-framework template CLI",
+  "description": "A CLI to manage boilerplates from Git repos",
   "main": "index.js",
   "bin": {
-    "ignis": "./bin/ignis.js"
+    "ignix": "./bin/ignix.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "./bin/ignis.js"
+    "dev": "./bin/ignix.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/JohnyYen/Ignis-Forge"
+    "url": "https://github.com/JohnyYen/ignix-forge"
   },
-  "homepage": "https://github.com/JohnyYen/Ignis-Forge#Readme",
+  "homepage": "https://github.com/JohnyYen/ignix-forge#Readme",
   "bugs": {
-    "url": "https://github.com/JohnyYen/Ignis-Forge/issues"
+    "url": "https://github.com/JohnyYen/ignix-forge/issues"
   },
   "keywords": [],
   "author": "Johny A. Pedraza Romero",
   "license": "ISC",
   "dependencies": {
     "chalk": "^5.4.1",
+    "clack": "^0.1.0",
     "commander": "^14.0.0",
     "dotenv": "^16.5.0",
     "ejs": "^3.1.10",
@@ -30,6 +31,7 @@
     "inquirer": "^12.6.3",
     "path": "^0.12.7",
     "shelljs": "^0.10.0",
-    "url": "^0.11.4"
+    "url": "^0.11.4",
+    "yargs": "^18.0.0"
   }
 }
